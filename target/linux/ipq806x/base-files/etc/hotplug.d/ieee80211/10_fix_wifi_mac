@@ -18,11 +18,6 @@ case "$board" in
 	nec,wg2600hp)
 		echo $(macaddr_add $(mtd_get_mac_binary PRODUCTDATA 12) $((1 - $PHYNBR)) ) > /sys${DEVPATH}/macaddress
 		;;
-	netgear,d7800 |\
-	netgear,r7500v2 |\
-	netgear,r7800)
-		echo $(macaddr_add $(mtd_get_mac_binary art 6)  $(($PHYNBR + 1)) ) > /sys${DEVPATH}/macaddress
-		;;
 	tplink,c2600)
 		echo $(macaddr_add $(mtd_get_mac_binary default-mac 8)  $(($PHYNBR - 1)) ) > /sys${DEVPATH}/macaddress
 		;;
