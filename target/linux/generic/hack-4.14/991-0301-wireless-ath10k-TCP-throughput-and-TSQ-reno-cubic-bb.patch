@@ -1,0 +1,158 @@
+
+m 2d79bfc1f97dab6a28008563343436a1b618d6b6 Mon Sep 17 00:00:00 2001
+From: Andrew W Elble <aweits@rit.edu>
+Date: Fri, 24 Feb 2017 12:06:45 -0500
+Subject: [PATCH 301/427] wireless/ath10k TCP throughput and TSQ,
+ reno/cubic/bbr
+
+I came across the BBR implementation while we are in the midst of a
+wireless refresh project here and tested it a bit. Was surprised at
+the lack of throughput on the transmit side and came across the thread
+where Eric Dumazet wrote:
+
+"This TSQ behavior has been discussed during some netdev linux
+conferences in Toronto last year, and I suggested that wifi drivers
+experiment in varying the 1ms TSQ budget to 5 ms, or 4 ms, to help
+aggregation logic.
+
+So far I am not aware of someone completing the experiment, so the
+code in Linux is unchanged."
+
+...and I seem to remember this thread:
+
+https://lkml.org/lkml/2016/4/12/763
+
+"Guessing is nice, but investigating and fixing is better.
+Do not assume that nothing can be done, please ?"
+
+In the interest of moving these discussions forward,
+I've given this a shot. I hope it's useful.
+
+Kernel: 4.9.11+-ish
+Wireless card: ath10k / Compex WLE900VX / FW: 10.2.4-1.0-00016
+Access point: unnamed enterprise-class 802.11ac wave2,
+              80MHz channel (SNR such that MCS9 rates are possible)
+Patch applied to test is below results:
+
+FQ is in place on interface:
+tc qdisc add dev wlp10s0 root fq
+
+test command:
+
+iperf3 -c <servername> -t 60 -p 2112
+
+RENO:
+
+[root@localhost aweits]# sudo sysctl net.ipv4.tcp_congestion_control=reno
+net.ipv4.tcp_congestion_control = reno
+[root@localhost aweits]# sysctl net.ipv4.tcp_tsq_limit_output_interval=5
+net.ipv4.tcp_tsq_limit_output_interval = 1
+
+[ ID] Interval           Transfer     Bandwidth       Retr
+[  4]   0.00-60.00  sec  1.59 GBytes   228 Mbits/sec   62             sender
+[  4]   0.00-60.00  sec  1.59 GBytes   228 Mbits/sec                  receiver
+
+[root@localhost aweits]# sudo sysctl net.ipv4.tcp_congestion_control=reno
+net.ipv4.tcp_congestion_control = reno
+[root@localhost aweits]# sysctl net.ipv4.tcp_tsq_limit_output_interval=5
+net.ipv4.tcp_tsq_limit_output_interval = 5
+
+[ ID] Interval           Transfer     Bandwidth       Retr
+[  4]   0.00-60.00  sec  2.57 GBytes   368 Mbits/sec   50             sender
+[  4]   0.00-60.00  sec  2.57 GBytes   368 Mbits/sec                  receiver
+
+CUBIC:
+
+[root@localhost aweits]# sudo sysctl net.ipv4.tcp_congestion_control=cubic
+net.ipv4.tcp_congestion_control = cubic
+[root@localhost aweits]# sysctl net.ipv4.tcp_tsq_limit_output_interval=1
+net.ipv4.tcp_tsq_limit_output_interval = 1
+
+NOTE: stays stuck at lower throughput for the first 15 seconds or so:
+ e.g.
+[  4]   7.00-8.00   sec  8.15 MBytes  68.4 Mbits/sec    0   69.8 KBytes)
+
+[ ID] Interval           Transfer     Bandwidth       Retr
+[  4]   0.00-60.00  sec  1.40 GBytes   201 Mbits/sec   59             sender
+[  4]   0.00-60.00  sec  1.40 GBytes   201 Mbits/sec                  receiver
+
+[root@localhost aweits]# sudo sysctl net.ipv4.tcp_congestion_control=cubic
+net.ipv4.tcp_congestion_control = cubic
+[root@localhost aweits]# sysctl net.ipv4.tcp_tsq_limit_output_interval=5
+net.ipv4.tcp_tsq_limit_output_interval = 5
+
+NOTE: jumps up to full BW almost immediately:
+ e.g.
+[  4]   1.00-2.00   sec  44.3 MBytes   372 Mbits/sec    0    369 KBytes
+
+[ ID] Interval           Transfer     Bandwidth       Retr
+[  4]   0.00-60.00  sec  2.56 GBytes   367 Mbits/sec  158             sender
+[  4]   0.00-60.00  sec  2.56 GBytes   367 Mbits/sec                  receiver
+
+BBR:
+
+[root@localhost aweits]# sudo sysctl net.ipv4.tcp_congestion_control=bbr
+net.ipv4.tcp_congestion_control = bbr
+[root@localhost aweits]# sysctl net.ipv4.tcp_tsq_limit_output_interval=1
+net.ipv4.tcp_tsq_limit_output_interval = 1
+
+[ ID] Interval           Transfer     Bandwidth       Retr
+[  4]   0.00-60.00  sec   104 MBytes  14.5 Mbits/sec    0             sender
+[  4]   0.00-60.00  sec   103 MBytes  14.4 Mbits/sec                  receiver
+
+[root@localhost aweits]# sudo sysctl net.ipv4.tcp_congestion_control=bbr
+net.ipv4.tcp_congestion_control = bbr
+[root@localhost aweits]# sysctl net.ipv4.tcp_tsq_limit_output_interval=5
+net.ipv4.tcp_tsq_limit_output_interval = 5
+
+[ ID] Interval           Transfer     Bandwidth       Retr
+[  4]   0.00-60.00  sec  2.32 GBytes   333 Mbits/sec    0             sender
+[  4]   0.00-60.00  sec  2.32 GBytes   332 Mbits/sec                  receiver
+
+--- a/include/net/tcp.h
++++ b/include/net/tcp.h
+@@ -268,6 +268,7 @@ extern int sysctl_tcp_recovery;
+ #define TCP_RACK_LOSS_DETECTION  0x1 /* Use RACK to detect losses */
+ 
+ extern int sysctl_tcp_limit_output_bytes;
++extern int sysctl_tcp_tsq_limit_output_interval;
+ extern int sysctl_tcp_challenge_ack_limit;
+ extern int sysctl_tcp_min_tso_segs;
+ extern int sysctl_tcp_min_rtt_wlen;
+--- a/net/ipv4/sysctl_net_ipv4.c
++++ b/net/ipv4/sysctl_net_ipv4.c
+@@ -603,6 +603,13 @@ static struct ctl_table ipv4_table[] = {
+ 		.proc_handler	= proc_dointvec
+ 	},
+ 	{
++		.procname	= "tcp_tsq_limit_output_interval",
++		.data		= &sysctl_tcp_tsq_limit_output_interval,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec
++	},
++	{
+ 		.procname	= "tcp_challenge_ack_limit",
+ 		.data		= &sysctl_tcp_challenge_ack_limit,
+ 		.maxlen		= sizeof(int),
+--- a/net/ipv4/tcp_output.c
++++ b/net/ipv4/tcp_output.c
+@@ -53,6 +53,9 @@ int sysctl_tcp_workaround_signed_windows
+ /* Default TSQ limit of four TSO segments */
+ int sysctl_tcp_limit_output_bytes __read_mostly = 262144;
+ 
++/* Limit on number of packets in qdisc/devices in units of ms */
++int sysctl_tcp_tsq_limit_output_interval __read_mostly = 1;
++
+ /* This limits the percentage of the congestion window which we
+  * will allow a single TSO frame to consume.  Building TSO frames
+  * which are too large can cause TCP streams to be bursty.
+@@ -2184,7 +2187,7 @@ static bool tcp_small_queue_check(struct
+ {
+ 	unsigned int limit;
+ 
+-	limit = max(2 * skb->truesize, sk->sk_pacing_rate >> sk->sk_pacing_shift);
++	limit = max_t(u32, 2 * skb->truesize, sysctl_tcp_tsq_limit_output_interval * (sk->sk_pacing_rate >> sk->sk_pacing_shift));
+ 	limit = min_t(u32, limit, sysctl_tcp_limit_output_bytes);
+ 	limit <<= factor;
+ 

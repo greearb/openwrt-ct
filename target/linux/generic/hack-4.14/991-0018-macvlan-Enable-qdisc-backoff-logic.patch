@@ -1,0 +1,29 @@
+From 8c68dc6affff9a7ff4f6f62e32f5c74309038d8b Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Wed, 6 Feb 2013 09:08:30 -0800
+Subject: [PATCH 18/37] macvlan: Enable qdisc backoff logic.
+
+This allows macvlans to apply backpressure to calling code
+in the transmit path when the underlying qdisc cannot accept
+additional packets.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ include/linux/if_vlan.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/linux/if_vlan.h b/include/linux/if_vlan.h
+index 87b8c20..1d32c40 100644
+--- a/include/linux/if_vlan.h
++++ b/include/linux/if_vlan.h
+@@ -103,6 +103,7 @@ struct vlan_pcpu_stats {
+ 	struct u64_stats_sync	syncp;
+ 	u32			rx_errors;
+ 	u32			tx_dropped;
++	u32                     collisions;
+ };
+ 
+ #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+-- 
+2.4.11
+

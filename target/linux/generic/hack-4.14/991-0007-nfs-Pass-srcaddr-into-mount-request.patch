@@ -1,0 +1,54 @@
+From c1ffd3dff25d199d3b849502066d854196818cd0 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Tue, 29 Jan 2013 22:48:25 -0800
+Subject: [PATCH 07/37] nfs: Pass srcaddr into mount request.
+
+This starts tying the srcaddr logic together.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ fs/nfs/internal.h   | 1 +
+ fs/nfs/mount_clnt.c | 1 +
+ fs/nfs/super.c      | 2 ++
+ 3 files changed, 4 insertions(+)
+
+diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
+index c30e93a..4cd4247 100644
+--- a/fs/nfs/internal.h
++++ b/fs/nfs/internal.h
+@@ -137,6 +137,7 @@ struct nfs_parsed_mount_data {
+ /* mount_clnt.c */
+ struct nfs_mount_request {
+ 	struct sockaddr		*sap;
++	struct sockaddr         *srcaddr;
+ 	size_t			salen;
+ 	char			*hostname;
+ 	char			*dirpath;
+diff --git a/fs/nfs/mount_clnt.c b/fs/nfs/mount_clnt.c
+index d979ff4..56bf31d 100644
+--- a/fs/nfs/mount_clnt.c
++++ b/fs/nfs/mount_clnt.c
+@@ -157,6 +157,7 @@ int nfs_mount(struct nfs_mount_request *info)
+ 	struct rpc_create_args args = {
+ 		.net		= info->net,
+ 		.protocol	= info->protocol,
++		.saddress	= info->srcaddr,
+ 		.address	= info->sap,
+ 		.addrsize	= info->salen,
+ 		.servername	= info->hostname,
+diff --git a/fs/nfs/super.c b/fs/nfs/super.c
+index 15083a0..d6e90b2 100644
+--- a/fs/nfs/super.c
++++ b/fs/nfs/super.c
+@@ -1745,6 +1745,8 @@ static int nfs_request_mount(struct nfs_parsed_mount_data *args,
+ 	struct nfs_mount_request request = {
+ 		.sap		= (struct sockaddr *)
+ 						&args->mount_server.address,
++		.salen		= args->mount_server.addrlen,
++		.srcaddr	= (struct sockaddr *)&args->srcaddr.address,
+ 		.dirpath	= args->nfs_server.export_path,
+ 		.protocol	= args->mount_server.protocol,
+ 		.fh		= root_fh,
+-- 
+2.4.11
+

@@ -1,0 +1,35 @@
+From 148ad10b53debd8af582b7d0caac5a9d89e425c9 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Fri, 13 Jan 2017 11:14:46 -0800
+Subject: [PATCH 30/37] Revert "include/uapi/linux/if_tunnel.h: include
+ linux/if.h, linux/ip.h and linux/in6.h"
+
+This reverts commit 1fe8e0f074c77aa41aaa579345a9e675acbebfa9.
+
+This breaks my build since I include netinet/ip.h and that conflicts with linux/ip.h.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ include/uapi/linux/if_tunnel.h | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/include/uapi/linux/if_tunnel.h b/include/uapi/linux/if_tunnel.h
+index 49b4e43..64226cb 100644
+--- a/include/uapi/linux/if_tunnel.h
++++ b/include/uapi/linux/if_tunnel.h
+@@ -3,11 +3,8 @@
+ #define _UAPI_IF_TUNNEL_H_
+ 
+ #include <linux/types.h>
+-#include <linux/if.h>
+-#include <linux/ip.h>
+-#include <linux/in6.h>
+ #include <asm/byteorder.h>
+-
++#include <linux/if.h>
+ 
+ #define SIOCGETTUNNEL   (SIOCDEVPRIVATE + 0)
+ #define SIOCADDTUNNEL   (SIOCDEVPRIVATE + 1)
+-- 
+2.4.11
+

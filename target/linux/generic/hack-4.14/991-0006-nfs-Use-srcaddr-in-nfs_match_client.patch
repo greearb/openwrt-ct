@@ -1,0 +1,75 @@
+From fb71d3a1e5e1f585e6ce304a65ffd1cbcab7e958 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Tue, 29 Jan 2013 22:48:25 -0800
+Subject: [PATCH 06/37] nfs: Use srcaddr in nfs_match_client.
+
+For bound clients, we have to make sure we do not re-use
+a client that is bound differently.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ fs/nfs/client.c     | 10 ++++++++++
+ fs/nfs/internal.h   |  2 ++
+ fs/nfs/nfs4client.c |  2 +-
+ 3 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/fs/nfs/client.c b/fs/nfs/client.c
+index 22880ef..6e296b0 100644
+--- a/fs/nfs/client.c
++++ b/fs/nfs/client.c
+@@ -293,6 +293,9 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
+ 
+ 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
+ 	        const struct sockaddr *clap = (struct sockaddr *)&clp->cl_addr;
++		const struct sockaddr *sa;
++		sa = (const struct sockaddr *)&clp->srcaddr;
++
+ 		/* Don't match clients that failed to initialise properly */
+ 		if (clp->cl_cons_state < 0)
+ 			continue;
+@@ -314,6 +317,13 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
+ 							   sap))
+ 				continue;
+ 
++		/* Check to make sure local-IP bindings match,
++		 * but just the IP-addr.
++		 */
++		if (data->srcaddr &&
++		    !rpc_cmp_addr(data->srcaddr, sa))
++			continue;
++
+ 		atomic_inc(&clp->cl_count);
+ 		return clp;
+ 	}
+diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
+index d6ff3df..c30e93a 100644
+--- a/fs/nfs/internal.h
++++ b/fs/nfs/internal.h
+@@ -75,9 +75,11 @@ struct nfs_client_initdata {
+ 	unsigned long init_flags;
+ 	const char *hostname;			/* Hostname of the server */
+ 	const struct sockaddr *addr;		/* Address of the server */
++	const struct sockaddr *srcaddr;
+ 	const char *nodename;			/* Hostname of the client */
+ 	const char *ip_addr;			/* IP address of the client */
+ 	size_t addrlen;
++	size_t srcaddrlen;
+ 	struct nfs_subversion *nfs_mod;
+ 	int proto;
+ 	u32 minorversion;
+diff --git a/fs/nfs/nfs4client.c b/fs/nfs/nfs4client.c
+index bb50b04..e9b7b08 100644
+--- a/fs/nfs/nfs4client.c
++++ b/fs/nfs/nfs4client.c
+@@ -809,7 +809,7 @@ nfs4_find_client_sessionid(struct net *net, const struct sockaddr *srcaddr,
+ 		if (srcaddr) {
+ 			const struct sockaddr *sa;
+ 			sa = (const struct sockaddr *)&clp->cl_addr;
+-			if (!nfs_sockaddr_match_ipaddr(srcaddr, sa)) {
++			if (!rpc_cmp_addr(srcaddr, sa)) {
+ 				/* If clp doesn't bind to srcaddr, then
+ 				 * it is a potential match if we don't find
+ 				 * a better one.
+-- 
+2.4.11
+

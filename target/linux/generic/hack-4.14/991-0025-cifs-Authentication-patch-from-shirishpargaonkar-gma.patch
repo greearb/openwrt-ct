@@ -1,0 +1,32 @@
+From 9878d042b6acfaf820ea891868b8187030561fde Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Mon, 3 Feb 2014 12:18:38 -0800
+Subject: [PATCH 25/37] cifs: Authentication patch from
+ shirishpargaonkar@gmail.com
+
+Might help with problem netapp saw, but not certain at this point.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ fs/cifs/sess.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/fs/cifs/sess.c b/fs/cifs/sess.c
+index aa23c00..c70c570 100644
+--- a/fs/cifs/sess.c
++++ b/fs/cifs/sess.c
+@@ -483,9 +483,8 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
+ 	sec_blob->WorkstationName.MaximumLength = 0;
+ 	tmp += 2;
+ 
+-	if (((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) ||
+-		(ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_EXTENDED_SEC))
+-			&& !calc_seckey(ses)) {
++	if ((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) &&
++	    !calc_seckey(ses)) {
+ 		memcpy(tmp, ses->ntlmssp->ciphertext, CIFS_CPHTXT_SIZE);
+ 		sec_blob->SessionKey.BufferOffset = cpu_to_le32(tmp - *pbuffer);
+ 		sec_blob->SessionKey.Length = cpu_to_le16(CIFS_CPHTXT_SIZE);
+-- 
+2.4.11
+

@@ -1,0 +1,32 @@
+From 9e1ca26cbb2ddff17887b2745cc043c8707600a8 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Wed, 24 Jan 2018 16:01:48 -0800
+Subject: [PATCH 35/37] ipv6: Add hack to work around fib6-walk crash.
+
+Hopefully someone will find a better way some day...
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ net/ipv6/ip6_fib.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/net/ipv6/ip6_fib.c b/net/ipv6/ip6_fib.c
+index f7cb801..2badf00 100644
+--- a/net/ipv6/ip6_fib.c
++++ b/net/ipv6/ip6_fib.c
+@@ -1715,6 +1715,12 @@ static int fib6_walk_continue(struct fib6_walker *w)
+ 			pn = fn->parent;
+ 			w->node = pn;
+ #ifdef CONFIG_IPV6_SUBTREES
++			if (WARN_ON_ONCE(!pn)) {
++				pr_err("FWS-U, w: %p  fn: %p  pn: %p\n",
++				       w, fn, pn);
++				/* Attempt to work around crash that has been here forever. --Ben */
++				return 0;
++			}
+ 			if (FIB6_SUBTREE(pn) == fn) {
+ 				WARN_ON(!(fn->fn_flags & RTN_ROOT));
+ 				w->state = FWS_L;
+-- 
+2.4.11
+

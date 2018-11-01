@@ -1,0 +1,30 @@
+From d32297300f84b292ebca4116485b0a1b4b60dbff Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Thu, 9 May 2013 11:56:19 -0700
+Subject: [PATCH 21/37] vlan: Support sending custom Ethernet CRC.
+
+If the underlying device supports sending custom Ethernet CRC,
+then enable that feature in the VLANs as well.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ net/8021q/vlan_dev.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/net/8021q/vlan_dev.c b/net/8021q/vlan_dev.c
+index cdd970b..3146a99 100644
+--- a/net/8021q/vlan_dev.c
++++ b/net/8021q/vlan_dev.c
+@@ -587,6 +587,9 @@ static int vlan_dev_init(struct net_device *dev)
+ 
+ 	dev->vlan_features = real_dev->vlan_features & ~NETIF_F_ALL_FCOE;
+ 
++	if (netif_supports_nofcs(real_dev))
++		dev->priv_flags |= IFF_SUPP_NOFCS;
++
+ 	/* ipv6 shared card related stuff */
+ 	dev->dev_id = real_dev->dev_id;
+ 
+-- 
+2.4.11
+

@@ -1,0 +1,41 @@
+From af70889594acb10c3901ec99296a45b2b38b57f2 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Wed, 25 May 2016 14:33:27 -0700
+Subject: [PATCH 28/37] =?UTF-8?q?Revert=20"veth:=20don=E2=80=99t=20modify?=
+ =?UTF-8?q?=20ip=5Fsummed;=20doing=20so=20treats=20packets=20with=20bad=20?=
+ =?UTF-8?q?checksums=20as=20good."?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This reverts commit ce8c839b74e3017996fad4e1b7ba2e2625ede82f.
+
+It breaks bridging packets using user-space raw sockets.  Whatever
+problem this may fix is less important to me, so reverting this
+code.
+
+Signed-off-by:  Ben Greear <greearb@candelatech.com>
+---
+ drivers/net/veth.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/net/veth.c b/drivers/net/veth.c
+index a69ad39..f0c25d9 100644
+--- a/drivers/net/veth.c
++++ b/drivers/net/veth.c
+@@ -110,6 +110,12 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
+ 		kfree_skb(skb);
+ 		goto drop;
+ 	}
++	/* don't change ip_summed == CHECKSUM_PARTIAL, as that
++	 * will cause bad checksum on forwarded packets
++	 */
++	if (skb->ip_summed == CHECKSUM_NONE &&
++	    rcv->features & NETIF_F_RXCSUM)
++		skb->ip_summed = CHECKSUM_UNNECESSARY;
+ 
+ 	if (likely(dev_forward_skb(rcv, skb) == NET_RX_SUCCESS)) {
+ 		struct pcpu_vstats *stats = this_cpu_ptr(dev->vstats);
+-- 
+2.4.11
+

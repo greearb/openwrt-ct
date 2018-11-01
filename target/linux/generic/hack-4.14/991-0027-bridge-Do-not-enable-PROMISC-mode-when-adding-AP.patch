@@ -1,0 +1,57 @@
+From 4cf7df6de2427669fb2e63324438a4badea48e88 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Mon, 13 Jul 2015 16:07:40 -0700
+Subject: [PATCH 27/37] bridge: Do not enable PROMISC mode when adding AP.
+
+This fixes ath10k instability in PROMISC mode, and should
+improve bridged AP performance in busy environments.
+
+See this for original idea and description:
+
+http://lists.celinuxforum.org/pipermail/bridge/2008-June/005906.html
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ net/bridge/br_if.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/net/bridge/br_if.c b/net/bridge/br_if.c
+index 55a73ef..374952a 100644
+--- a/net/bridge/br_if.c
++++ b/net/bridge/br_if.c
+@@ -94,7 +94,8 @@ static void br_port_set_promisc(struct net_bridge_port *p)
+ 	if (br_promisc_port(p))
+ 		return;
+ 
+-	err = dev_set_promiscuity(p->dev, 1);
++	if (!p->dev->ieee80211_ptr)
++		err = dev_set_promiscuity(p->dev, 1);
+ 	if (err)
+ 		return;
+ 
+@@ -121,7 +122,8 @@ static void br_port_clear_promisc(struct net_bridge_port *p)
+ 	if (err)
+ 		return;
+ 
+-	dev_set_promiscuity(p->dev, -1);
++	if (!p->dev->ieee80211_ptr)
++		dev_set_promiscuity(p->dev, -1);
+ 	p->flags &= ~BR_PROMISC;
+ }
+ 
+@@ -186,8 +188,10 @@ static void nbp_delete_promisc(struct net_bridge_port *p)
+ 	 * from it.
+ 	 */
+ 	dev_set_allmulti(p->dev, -1);
+-	if (br_promisc_port(p))
+-		dev_set_promiscuity(p->dev, -1);
++	if (br_promisc_port(p)) {
++		if (!p->dev->ieee80211_ptr)
++			dev_set_promiscuity(p->dev, -1);
++	}
+ 	else
+ 		br_fdb_unsync_static(p->br, p);
+ }
+-- 
+2.4.11
+

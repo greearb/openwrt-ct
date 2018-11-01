@@ -1,0 +1,27 @@
+From f235c7b5edb50cfff449fcb09c9fc7342e094c41 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Tue, 29 Jan 2013 22:48:24 -0800
+Subject: [PATCH 02/37] nfs: Two AF_UNSPEC addresses should always match each
+ other.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ include/linux/sunrpc/addr.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/linux/sunrpc/addr.h b/include/linux/sunrpc/addr.h
+index 07d4548..62bbdbf 100644
+--- a/include/linux/sunrpc/addr.h
++++ b/include/linux/sunrpc/addr.h
+@@ -126,6 +126,8 @@ static inline bool rpc_cmp_addr(const struct sockaddr *sap1,
+ 			return rpc_cmp_addr4(sap1, sap2);
+ 		case AF_INET6:
+ 			return rpc_cmp_addr6(sap1, sap2);
++		case AF_UNSPEC:
++			return true; /* two UNSPEC addresses match */
+ 		}
+ 	}
+ 	return false;
+-- 
+2.4.11
+

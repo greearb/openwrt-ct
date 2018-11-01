@@ -1,0 +1,33 @@
+From 94be2801aec456e07699878dc057add6d08f3ccf Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Thu, 1 Nov 2018 16:40:20 -0700
+Subject: [PATCH] pktgen:  Fix compile w/out XFRM
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ net/core/pktgen.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/net/core/pktgen.c b/net/core/pktgen.c
+index ebc41c6..e252510 100644
+--- a/net/core/pktgen.c
++++ b/net/core/pktgen.c
+@@ -2974,6 +2974,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
+ 	pkt_dev->flows[flow].count++;
+ }
+ 
++#ifdef CONFIG_XFRM
+ static u32 pktgen_dst_metrics[RTAX_MAX + 1] = {
+ 
+ 	[RTAX_HOPLIMIT] = 0x5, /* Set a static hoplimit */
+@@ -3080,6 +3081,7 @@ static int process_ipsec(struct pktgen_dev *pkt_dev,
+ 	kfree_skb(skb);
+ 	return 0;
+ }
++#endif
+ 
+ static void mpls_push(__be32 *mpls, struct pktgen_dev *pkt_dev)
+ {
+-- 
+2.4.11
+

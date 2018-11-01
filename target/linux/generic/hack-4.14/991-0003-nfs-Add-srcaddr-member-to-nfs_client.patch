@@ -1,0 +1,59 @@
+From 8a703331ba744e991efdec5b4a664e1a5be6728d Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Tue, 29 Jan 2013 22:48:24 -0800
+Subject: [PATCH 03/37] nfs: Add srcaddr member to nfs_client.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ fs/nfs/internal.h         | 5 +++++
+ fs/nfs/super.c            | 2 ++
+ include/linux/nfs_fs_sb.h | 4 ++++
+ 3 files changed, 11 insertions(+)
+
+diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
+index f9a4a55..22ea330 100644
+--- a/fs/nfs/internal.h
++++ b/fs/nfs/internal.h
+@@ -108,6 +108,11 @@ struct nfs_parsed_mount_data {
+ 	struct {
+ 		struct sockaddr_storage	address;
+ 		size_t			addrlen;
++	} srcaddr;
++
++	struct {
++		struct sockaddr_storage address;
++		size_t                  addrlen;
+ 		char			*hostname;
+ 		u32			version;
+ 		int			port;
+diff --git a/fs/nfs/super.c b/fs/nfs/super.c
+index 38de09b..15083a0 100644
+--- a/fs/nfs/super.c
++++ b/fs/nfs/super.c
+@@ -929,6 +929,8 @@ static struct nfs_parsed_mount_data *nfs_alloc_parsed_mount_data(void)
+ 		data->minorversion	= 0;
+ 		data->need_mount	= true;
+ 		data->net		= current->nsproxy->net_ns;
++		data->srcaddr.address.ss_family = AF_UNSPEC;
++		data->srcaddr.addrlen = sizeof(data->srcaddr.address);
+ 		security_init_mnt_opts(&data->lsm_opts);
+ 	}
+ 	return data;
+diff --git a/include/linux/nfs_fs_sb.h b/include/linux/nfs_fs_sb.h
+index 286b71c..d9bf72f 100644
+--- a/include/linux/nfs_fs_sb.h
++++ b/include/linux/nfs_fs_sb.h
+@@ -115,6 +115,10 @@ struct nfs_client {
+ 	 */
+ 	char			cl_ipaddr[48];
+ 
++	/* If we should bind to a local IP, it should be specified below. */
++	struct sockaddr_storage	srcaddr;
++	size_t			srcaddrlen;
++
+ #ifdef CONFIG_NFS_FSCACHE
+ 	struct fscache_cookie	*fscache;	/* client index cache cookie */
+ #endif
+-- 
+2.4.11
+

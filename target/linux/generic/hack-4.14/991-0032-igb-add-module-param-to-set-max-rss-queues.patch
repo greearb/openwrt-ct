@@ -1,0 +1,45 @@
+From c652c2f54b088db54578a6b12a59b27c234138ed Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Fri, 24 Mar 2017 13:55:50 -0700
+Subject: [PATCH 32/37] igb: add module param to set max-rss-queues.
+
+In systems where you may have a very large number of network
+adapters, certain drivers may consume an unfair amount of
+IRQ resources.  So, allow a module param that will limit the
+number of IRQs at driver load time.  This way, other drivers
+(40G Ethernet, for instance), which probably will need the
+multiple IRQs more, will not be starved of IRQ resources.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ drivers/net/ethernet/intel/igb/igb_main.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/drivers/net/ethernet/intel/igb/igb_main.c b/drivers/net/ethernet/intel/igb/igb_main.c
+index 2fcffd7..c38dfbd 100644
+--- a/drivers/net/ethernet/intel/igb/igb_main.c
++++ b/drivers/net/ethernet/intel/igb/igb_main.c
+@@ -221,6 +221,10 @@ module_param(max_vfs, uint, 0);
+ MODULE_PARM_DESC(max_vfs, "Maximum number of virtual functions to allocate per physical function");
+ #endif /* CONFIG_PCI_IOV */
+ 
++static unsigned int max_rss_qs;
++module_param(max_rss_qs, uint, 0);
++MODULE_PARM_DESC(max_rss_qs, "Maximum number of RSS queues.  Forcing lower will use less IRQ resources.");
++
+ static pci_ers_result_t igb_io_error_detected(struct pci_dev *,
+ 		     pci_channel_state_t);
+ static pci_ers_result_t igb_io_slot_reset(struct pci_dev *);
+@@ -3063,6 +3067,9 @@ static void igb_init_queue_configuration(struct igb_adapter *adapter)
+ 		break;
+ 	}
+ 
++	if (max_rss_qs && max_rss_qs < max_rss_queues)
++		max_rss_queues = max_rss_qs;
++
+ 	adapter->rss_queues = min_t(u32, max_rss_queues, num_online_cpus());
+ 
+ 	igb_set_flag_queue_pairs(adapter, max_rss_queues);
+-- 
+2.4.11
+

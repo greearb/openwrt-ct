@@ -1,0 +1,29 @@
+From 695adc811c5fb5418ebc9fa15420621ac6a2e8c2 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Wed, 26 Oct 2016 13:19:06 -0700
+Subject: [PATCH 29/37] ethtool: Add cast to fix compiler warning.
+
+This fixes a signed vs unsigned comparison warning when
+using ethtool.h in c++ code (at least).
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ include/uapi/linux/ethtool.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/uapi/linux/ethtool.h b/include/uapi/linux/ethtool.h
+index 9eae13e..14d60ba 100644
+--- a/include/uapi/linux/ethtool.h
++++ b/include/uapi/linux/ethtool.h
+@@ -1555,7 +1555,7 @@ enum ethtool_link_mode_bit_indices {
+ 
+ static inline int ethtool_validate_speed(__u32 speed)
+ {
+-	return speed <= INT_MAX || speed == SPEED_UNKNOWN;
++	return speed <= INT_MAX || speed == ((__u32)SPEED_UNKNOWN);
+ }
+ 
+ /* Duplex, half or full. */
+-- 
+2.4.11
+

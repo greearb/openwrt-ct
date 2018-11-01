@@ -1,0 +1,28 @@
+From f2c6252da9bf0f25ecb2c5ae5669b41501945990 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Tue, 29 Jan 2013 22:48:33 -0800
+Subject: [PATCH 17/37] dev: Use sched-timeout instead of msleep(250)
+
+Should help speed device removal in some cases.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ net/core/dev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/net/core/dev.c b/net/core/dev.c
+index 8aad9a1..0b8b991 100644
+--- a/net/core/dev.c
++++ b/net/core/dev.c
+@@ -7909,7 +7909,7 @@ static void netdev_wait_allrefs(struct net_device *dev)
+ 			rebroadcast_time = jiffies;
+ 		}
+ 
+-		msleep(250);
++		schedule_timeout_uninterruptible(1);
+ 
+ 		refcnt = netdev_refcnt_read(dev);
+ 
+-- 
+2.4.11
+

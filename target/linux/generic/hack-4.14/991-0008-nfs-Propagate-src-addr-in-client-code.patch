@@ -1,0 +1,104 @@
+From 6a9c7403a5c02b92f2c6aeee3cb70e0d1798fc08 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Tue, 29 Jan 2013 22:48:25 -0800
+Subject: [PATCH 08/37] nfs: Propagate src-addr in client code.
+
+This ties the srcaddr supplied by mount to the
+rpc code.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ fs/nfs/client.c     |  5 +++++
+ fs/nfs/nfs4client.c | 11 +++++++++++
+ 2 files changed, 16 insertions(+)
+
+diff --git a/fs/nfs/client.c b/fs/nfs/client.c
+index 6e296b0..6dec833 100644
+--- a/fs/nfs/client.c
++++ b/fs/nfs/client.c
+@@ -168,6 +168,8 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
+ 
+ 	memcpy(&clp->cl_addr, cl_init->addr, cl_init->addrlen);
+ 	clp->cl_addrlen = cl_init->addrlen;
++	memcpy(&clp->srcaddr, cl_init->srcaddr, cl_init->srcaddrlen);
++	clp->srcaddrlen = cl_init->srcaddrlen;
+ 
+ 	if (cl_init->hostname) {
+ 		err = -ENOMEM;
+@@ -498,6 +500,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
+ 		.net		= clp->cl_net,
+ 		.protocol	= clp->cl_proto,
+ 		.address	= (struct sockaddr *)&clp->cl_addr,
++		.saddress	= (struct sockaddr *)&clp->srcaddr,
+ 		.addrsize	= clp->cl_addrlen,
+ 		.timeout	= cl_init->timeparms,
+ 		.servername	= clp->cl_hostname,
+@@ -653,6 +656,8 @@ static int nfs_init_server(struct nfs_server *server,
+ 		.addr = (const struct sockaddr *)&data->nfs_server.address,
+ 		.addrlen = data->nfs_server.addrlen,
+ 		.nfs_mod = nfs_mod,
++		.srcaddr = (const struct sockaddr *)&data->srcaddr.address,
++		.srcaddrlen = data->srcaddr.addrlen,
+ 		.proto = data->nfs_server.protocol,
+ 		.net = data->net,
+ 		.timeparms = &timeparms,
+diff --git a/fs/nfs/nfs4client.c b/fs/nfs/nfs4client.c
+index e9b7b08..244c017 100644
+--- a/fs/nfs/nfs4client.c
++++ b/fs/nfs/nfs4client.c
+@@ -852,6 +852,8 @@ static int nfs4_set_client(struct nfs_server *server,
+ 		const struct sockaddr *addr,
+ 		const size_t addrlen,
+ 		const char *ip_addr,
++		const struct sockaddr *srcaddr,
++		const size_t srcaddrlen,
+ 		int proto, const struct rpc_timeout *timeparms,
+ 		u32 minorversion, struct net *net)
+ {
+@@ -865,6 +867,8 @@ static int nfs4_set_client(struct nfs_server *server,
+ 		.minorversion = minorversion,
+ 		.net = net,
+ 		.timeparms = timeparms,
++		.srcaddr = srcaddr,
++		.srcaddrlen = srcaddrlen,
+ 	};
+ 	struct nfs_client *clp;
+ 
+@@ -1060,6 +1064,8 @@ static int nfs4_init_server(struct nfs_server *server,
+ 			(const struct sockaddr *)&data->nfs_server.address,
+ 			data->nfs_server.addrlen,
+ 			data->client_address,
++			(const struct sockaddr *)&data->srcaddr.address,
++			data->srcaddr.addrlen,
+ 			data->nfs_server.protocol,
+ 			&timeparms,
+ 			data->minorversion,
+@@ -1144,6 +1150,8 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
+ 				data->addr,
+ 				data->addrlen,
+ 				parent_client->cl_ipaddr,
++				(const struct sockaddr *)&parent_client->srcaddr,
++				parent_client->srcaddrlen,
+ 				rpc_protocol(parent_server->client),
+ 				parent_server->client->cl_timeout,
+ 				parent_client->cl_mvops->minor_version,
+@@ -1224,6 +1232,7 @@ int nfs4_update_server(struct nfs_server *server, const char *hostname,
+ 	struct sockaddr *localaddr = (struct sockaddr *)&address;
+ 	int error;
+ 
++	/* TODO-BEN:  Not sure this is all just right when binding to source-addr. */
+ 	error = rpc_switch_client_transport(clnt, &xargs, clnt->cl_timeout);
+ 	if (error != 0)
+ 		return error;
+@@ -1238,6 +1247,8 @@ int nfs4_update_server(struct nfs_server *server, const char *hostname,
+ 	nfs_server_remove_lists(server);
+ 	set_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status);
+ 	error = nfs4_set_client(server, hostname, sap, salen, buf,
++				(struct sockaddr *)(&clp->srcaddr),
++				clp->srcaddrlen,
+ 				clp->cl_proto, clnt->cl_timeout,
+ 				clp->cl_minorversion, net);
+ 	clear_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status);
+-- 
+2.4.11
+

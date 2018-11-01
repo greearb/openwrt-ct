@@ -1,0 +1,95 @@
+From 09bf0b1f1cbd6d57541f03c215f960e95b741052 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Tue, 29 Jan 2013 22:48:25 -0800
+Subject: [PATCH 05/37] nfs: Pay attention to srcaddr in v4.1 callback logic.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ fs/nfs/callback_proc.c |  2 +-
+ fs/nfs/internal.h      |  6 ++++--
+ fs/nfs/nfs4client.c    | 24 +++++++++++++++++++++++-
+ 3 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/fs/nfs/callback_proc.c b/fs/nfs/callback_proc.c
+index b8d55da..e60c146 100644
+--- a/fs/nfs/callback_proc.c
++++ b/fs/nfs/callback_proc.c
+@@ -487,7 +487,7 @@ __be32 nfs4_callback_sequence(void *argp, void *resp,
+ 	int i;
+ 	__be32 status = htonl(NFS4ERR_BADSESSION);
+ 
+-	clp = nfs4_find_client_sessionid(cps->net, args->csa_addr,
++	clp = nfs4_find_client_sessionid(cps->net, args->csa_daddr, args->csa_addr,
+ 					 &args->csa_sessionid, cps->minorversion);
+ 	if (clp == NULL)
+ 		goto out;
+diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
+index 22ea330..d6ff3df 100644
+--- a/fs/nfs/internal.h
++++ b/fs/nfs/internal.h
+@@ -178,8 +178,10 @@ extern void nfs_put_client(struct nfs_client *);
+ extern void nfs_free_client(struct nfs_client *);
+ extern struct nfs_client *nfs4_find_client_ident(struct net *, int);
+ extern struct nfs_client *
+-nfs4_find_client_sessionid(struct net *, const struct sockaddr *,
+-				struct nfs4_sessionid *, u32);
++nfs4_find_client_sessionid(struct net *,
++			   const struct sockaddr *srcaddr,
++			   const struct sockaddr *addr,
++			   struct nfs4_sessionid *, u32);
+ extern struct nfs_server *nfs_create_server(struct nfs_mount_info *,
+ 					struct nfs_subversion *);
+ extern struct nfs_server *nfs4_create_server(
+diff --git a/fs/nfs/nfs4client.c b/fs/nfs/nfs4client.c
+index fb85d04..bb50b04 100644
+--- a/fs/nfs/nfs4client.c
++++ b/fs/nfs/nfs4client.c
+@@ -785,11 +785,13 @@ static bool nfs4_cb_match_client(const struct sockaddr *addr,
+  * Returns NULL if no such client
+  */
+ struct nfs_client *
+-nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
++nfs4_find_client_sessionid(struct net *net, const struct sockaddr *srcaddr,
++			   const struct sockaddr *addr,
+ 			   struct nfs4_sessionid *sid, u32 minorversion)
+ {
+ 	struct nfs_client *clp;
+ 	struct nfs_net *nn = net_generic(net, nfs_net_id);
++	struct nfs_client *ok_fit = NULL;
+ 
+ 	spin_lock(&nn->nfs_client_lock);
+ 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
+@@ -804,10 +806,30 @@ nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
+ 		    sid->data, NFS4_MAX_SESSIONID_LEN) != 0)
+ 			continue;
+ 
++		if (srcaddr) {
++			const struct sockaddr *sa;
++			sa = (const struct sockaddr *)&clp->cl_addr;
++			if (!nfs_sockaddr_match_ipaddr(srcaddr, sa)) {
++				/* If clp doesn't bind to srcaddr, then
++				 * it is a potential match if we don't find
++				 * a better one.
++				 */
++				if (sa->sa_family == AF_UNSPEC && !ok_fit)
++					ok_fit = clp;
++				continue;
++			}
++		}
++found_one:
+ 		atomic_inc(&clp->cl_count);
+ 		spin_unlock(&nn->nfs_client_lock);
+ 		return clp;
+ 	}
++
++	if (ok_fit) {
++		clp = ok_fit;
++		goto found_one;
++	}
++
+ 	spin_unlock(&nn->nfs_client_lock);
+ 	return NULL;
+ }
+-- 
+2.4.11
+

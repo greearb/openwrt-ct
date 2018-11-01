@@ -1,0 +1,58 @@
+From cb4de76dc816a8f00cd203fb01433199bcc7cad2 Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Tue, 29 Jan 2013 22:48:27 -0800
+Subject: [PATCH 11/37] nfs: Add srcaddr to /proc/fs/nfsfs/servers
+
+Helps users understand whether a server instance is
+bound to a local IP or not.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ fs/nfs/client.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/fs/nfs/client.c b/fs/nfs/client.c
+index 6dec833..a289ee7 100644
+--- a/fs/nfs/client.c
++++ b/fs/nfs/client.c
+@@ -1165,7 +1165,7 @@ static int nfs_server_list_show(struct seq_file *m, void *v)
+ 
+ 	/* display header on line 1 */
+ 	if (v == &nn->nfs_client_list) {
+-		seq_puts(m, "NV SERVER   PORT USE HOSTNAME\n");
++		seq_puts(m, "NV SERVER   PORT USE HOSTNAME           SRCADDR\n");
+ 		return 0;
+ 	}
+ 
+@@ -1177,7 +1177,7 @@ static int nfs_server_list_show(struct seq_file *m, void *v)
+ 		return 0;
+ 
+ 	rcu_read_lock();
+-	seq_printf(m, "v%u %s %s %3d %s\n",
++	seq_printf(m, "v%u %s %s %3d %s",
+ 		   clp->rpc_ops->version,
+ 		   rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_HEX_ADDR),
+ 		   rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_HEX_PORT),
+@@ -1185,6 +1185,19 @@ static int nfs_server_list_show(struct seq_file *m, void *v)
+ 		   clp->cl_hostname);
+ 	rcu_read_unlock();
+ 
++	if (clp->srcaddr.ss_family == AF_INET) {
++		const struct sockaddr_in *sin;
++		sin = (const struct sockaddr_in *)&clp->srcaddr;
++		seq_printf(m, "   %pI4\n", &sin->sin_addr.s_addr);
++	} else if (clp->srcaddr.ss_family == AF_INET6) {
++		const struct sockaddr_in6 *sin6;
++		sin6 = (const struct sockaddr_in6 *)&clp->srcaddr;
++		seq_printf(m, "   %pI6c\n", &sin6->sin6_addr);
++	} else if (clp->srcaddr.ss_family == AF_UNSPEC)
++		seq_printf(m, "   ANY\n");
++	else
++		seq_printf(m, "   UNKNOWN_%i\n", (int)(clp->srcaddr.ss_family));
++
+ 	return 0;
+ }
+ 
+-- 
+2.4.11
+

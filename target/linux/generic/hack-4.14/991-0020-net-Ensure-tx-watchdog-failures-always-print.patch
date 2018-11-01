@@ -1,0 +1,38 @@
+From 15de630d046d847cbbec029f4a6226e556336ccf Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Thu, 9 May 2013 11:56:17 -0700
+Subject: [PATCH 20/37] net: Ensure tx watchdog failures always print.
+
+These are too important to not have some log message
+generated.  But, keep the logic that only prints
+a single stack dump.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
+---
+ net/sched/sch_generic.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/net/sched/sch_generic.c b/net/sched/sch_generic.c
+index fe69e85..3d554d7 100644
+--- a/net/sched/sch_generic.c
++++ b/net/sched/sch_generic.c
+@@ -316,8 +316,14 @@ static void dev_watchdog(unsigned long arg)
+ 			}
+ 
+ 			if (some_queue_timedout) {
+-				WARN_ONCE(1, KERN_INFO "NETDEV WATCHDOG: %s (%s): transmit queue %u timed out\n",
+-				       dev->name, netdev_drivername(dev), i);
++				printk(KERN_INFO "NETDEV WATCHDOG: %s (%s):"
++				       " transmit queue %u timed out,"
++				       " trans_start: %lu, wd-timeout: %i"
++				       " jiffies: %lu tx-queues: %i\n",
++				       dev->name, netdev_drivername(dev), i,
++				       trans_start, dev->watchdog_timeo,
++				       jiffies, dev->num_tx_queues);
++				WARN_ON_ONCE(1);
+ 				dev->netdev_ops->ndo_tx_timeout(dev);
+ 			}
+ 			if (!mod_timer(&dev->watchdog_timer,
+-- 
+2.4.11
+
