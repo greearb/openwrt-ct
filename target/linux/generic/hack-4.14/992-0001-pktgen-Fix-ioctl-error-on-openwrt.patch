@@ -1,0 +1,57 @@
+From c0d32276eb498934a2f42cd491ba802cf50a060b Mon Sep 17 00:00:00 2001
+From: Ben Greear <greearb@candelatech.com>
+Date: Tue, 6 Nov 2018 12:52:29 -0800
+Subject: [PATCH] pktgen:  Fix ioctl error on openwrt.
+
+---
+ net/core/pktgen.c | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/net/core/pktgen.c b/net/core/pktgen.c
+index 658e168..5fbf685 100644
+--- a/net/core/pktgen.c
++++ b/net/core/pktgen.c
+@@ -175,6 +175,8 @@
+ #include <linux/sched.h> /* sched_clock() */
+ #include "pktgen.h"
+ #include <linux/ktime.h>
++#include <linux/ioctl.h>
++#include <asm/ioctls.h>
+ 
+ #define USE_NQW_CALLBACK
+ #ifdef USE_NQW_CALLBACK
+@@ -558,9 +560,14 @@ long pktgen_proc_ioctl(struct file* file, unsigned int cmd,
+ 		 mutex_unlock(&pktgen_thread_lock);
+                  break;
+          }
+-         default:
+-		printk("%s: Unknown pktgen IOCTL: %x \n", __FUNCTION__,
+-			cmd);
++
++	 case TIOCGWINSZ:
++	 case TIOCSWINSZ:
++		 return -EINVAL;
++
++	 default:
++		printk("Unknown pktgen IOCTL: 0x%x\n",
++		       cmd);
+ 		return -EINVAL;
+         }
+ 
+@@ -2974,12 +2981,12 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
+ 	pkt_dev->flows[flow].count++;
+ }
+ 
++#ifdef CONFIG_XFRM
+ static u32 pktgen_dst_metrics[RTAX_MAX + 1] = {
+ 
+ 	[RTAX_HOPLIMIT] = 0x5, /* Set a static hoplimit */
+ };
+ 
+-#ifdef CONFIG_XFRM
+ static int pktgen_output_ipsec(struct sk_buff *skb, struct pktgen_dev *pkt_dev)
+ {
+ 	struct xfrm_state *x = pkt_dev->flows[pkt_dev->curfl].x;
+-- 
+2.4.11
+
