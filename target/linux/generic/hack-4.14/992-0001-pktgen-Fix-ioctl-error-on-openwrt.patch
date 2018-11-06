@@ -1,14 +1,17 @@
-From c0d32276eb498934a2f42cd491ba802cf50a060b Mon Sep 17 00:00:00 2001
+From c36381bc4deb563787fc8828149355623e5fdf1b Mon Sep 17 00:00:00 2001
 From: Ben Greear <greearb@candelatech.com>
-Date: Tue, 6 Nov 2018 12:52:29 -0800
-Subject: [PATCH] pktgen:  Fix ioctl error on openwrt.
+Date: Tue, 6 Nov 2018 14:22:55 -0800
+Subject: [PATCH] pktgen:  Fix ioctl errors on openwrt.
 
+Need to silently ignore these instead of spamming logs.
+
+Signed-off-by: Ben Greear <greearb@candelatech.com>
 ---
- net/core/pktgen.c | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ net/core/pktgen.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
 
 diff --git a/net/core/pktgen.c b/net/core/pktgen.c
-index 658e168..5fbf685 100644
+index e252510..5fbf685 100644
 --- a/net/core/pktgen.c
 +++ b/net/core/pktgen.c
 @@ -175,6 +175,8 @@
@@ -38,20 +41,6 @@ index 658e168..5fbf685 100644
  		return -EINVAL;
          }
  
-@@ -2974,12 +2981,12 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
- 	pkt_dev->flows[flow].count++;
- }
- 
-+#ifdef CONFIG_XFRM
- static u32 pktgen_dst_metrics[RTAX_MAX + 1] = {
- 
- 	[RTAX_HOPLIMIT] = 0x5, /* Set a static hoplimit */
- };
- 
--#ifdef CONFIG_XFRM
- static int pktgen_output_ipsec(struct sk_buff *skb, struct pktgen_dev *pkt_dev)
- {
- 	struct xfrm_state *x = pkt_dev->flows[pkt_dev->curfl].x;
 -- 
 2.4.11
 
