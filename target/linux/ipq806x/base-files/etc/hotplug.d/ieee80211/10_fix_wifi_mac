@@ -30,34 +30,3 @@ case "$board" in
 	*)
 		;;
 esac
-
-OPATH=${DEVPATH##/devices/platform/}
-OPATH=${OPATH%%/ieee*}
-
-# For USB, OPATH looks like this at this point in this script:
-# soc/soc:usb30@0/11000000.dwc3/xhci-hcd.0.auto/usb1/1-1/1-1:1.0
-# But, the uci path has a platform/ prefix on that:
-# platform/soc/soc:usb30@0/11000000.dwc3/xhci-hcd.0.auto/usb1/1-1/1-1:1.0
-OPATH_USB="platform/$OPATH";
-
-# 10 radios is enough for anyone!
-#echo "fix-wifi-mac, OPATH: $OPATH" >> /tmp/foo.txt
-for i in `seq 0 9`;
-  do
-  BUS=`uci get wireless.@wifi-device[$i].path`
-  #echo "fix-wifi-mac, BUS[$i]: $BUS" >> /tmp/foo.txt
-  if [ "$BUS " == "$OPATH " ] || [ "$BUS " == "$OPATH_USB " ]
-      then
-      PHYNAME=${DEVPATH##*ieee80211/}
-      NPHYNAME=`uci get wireless.@wifi-device[$i].phyname`
-      #echo "fix-wifi-mac, PHYNAME[$i]: $PHYNAME  NPHYNAME: $NPHYNAME" >> /tmp/foo.txt;
-      if [ "$NPHYNAME " != " " ]
-          then
-          if [ "$PHYNAME " != "$NPHYNAME " ]
-              then
-	      #echo "fix-wifi-mac, renaming..." >> /tmp/foo.txt;
-              iw $PHYNAME set name $NPHYNAME
-          fi
-      fi
-  fi
-done
