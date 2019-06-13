@@ -7,12 +7,12 @@ PKG_LICENSE:=GPLv2
 PKG_LICENSE_FILES:=
 
 PKG_SOURCE_URL:=https://github.com/greearb/ath10k-ct.git
-PKG_MIRROR_HASH:=b5815b77a2761ac6abdda84299cb572f388937a0c5cd3663767e2ead3d7c1ba8
+PKG_MIRROR_HASH:=a6d418dfec02842529a53b3c48236e7a375a654a03e199fbc5178bdb269b7d64
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_DATE:=2019-03-06
-PKG_SOURCE_VERSION:=4b3cf7c2097294b9071c167799fb83031d7670f0
+PKG_SOURCE_DATE:=2019-06-13
+PKG_SOURCE_VERSION:=f0aa81302b2286715fa2fa5a2f4ebe2faf17694c
 
-# Build the 4.13 ath10k-ct driver version.  Other options are "-4.9", or
+# Build the 4.16 ath10k-ct driver version.  Other options are "-4.9", or
 # leave un-defined for 4.7 kernel.  Probably this should match as closely as
 # possible to whatever mac80211 backports version is being used.
 CT_KVER="-4.16"
